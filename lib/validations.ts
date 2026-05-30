@@ -364,7 +364,7 @@ export const wrappedParamsSchema = z.object({
     .transform((val) => sanitizeFont(val) || undefined),
   refresh: z.string().optional().transform(toRefreshFlag),
   hide_title: z.string().optional().transform(toBooleanFlag),
-  hide_background: z.string().optional().transform(toRefreshFlag),
+  hide_background: z.string().optional().transform(toBooleanFlag), // ✅ Fixed: was toRefreshFlag
   width: dimensionParam('width', 100, 1200),
   height: dimensionParam('height', 80, 800),
 });
