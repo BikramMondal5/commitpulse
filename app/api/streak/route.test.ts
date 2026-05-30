@@ -461,6 +461,11 @@ describe('GET /api/streak', () => {
       expect(body.details.fieldErrors.year[0]).toContain('GitHub was founded in 2008');
     });
 
+    it('returns 200 for unknown ?date= parameter (not part of schema)', async () => {
+      const response = await GET(makeRequest({ user: 'octocat', date: '2026-15-40' }));
+      expect(response.status).toBe(200);
+    });
+
     it('returns 400 for malformed numeric year', async () => {
       const response = await GET(makeRequest({ user: 'octocat', year: '100000' }));
       const body = await response.json();
