@@ -1967,6 +1967,399 @@ function generateAutoThemeVersusSVG(
 </svg>`;
 }
 
+export function generatePulseSVG(
+  stats: StreakStats,
+  params: BadgeParams,
+  calendar: ContributionCalendar
+): string {
+  if (params.autoTheme) {
+    return generateAutoThemePulseSVG(stats, params, calendar);
+  }
+
+  const safeUser = escapeXML(params.user || 'GitHub User');
+  const bg = `#${sanitizeHexColor(params.bg, '0d1117')}`;
+
+  const rawAccent = Array.isArray(params.accent)
+    ? params.accent[params.accent.length - 1]
+    : params.accent;
+  const accent = `#${sanitizeHexColor(rawAccent, '00ffaa')}`;
+  const text = `#${sanitizeHexColor(params.text, 'ffffff')}`;
+
+  const sanitizedFont = sanitizeFont(params.font);
+  const predefinedFont = sanitizedFont
+    ? (FONT_MAP[sanitizedFont.toLowerCase() as keyof typeof FONT_MAP] ?? null)
+    : null;
+  const isPredefinedFont = Boolean(predefinedFont);
+  const selectedFont = isPredefinedFont
+    ? predefinedFont
+    : sanitizedFont
+      ? `"${sanitizedFont}", sans-serif`
+      : null;
+
+  const statsFont = selectedFont || '"Space Grotesk", sans-serif';
+  const parsedRadius = Number(params.radius);
+  const radius = Math.max(0, Math.min(Number.isNaN(parsedRadius) ? 8 : parsedRadius, 50));
+
+  const googleFontUrlPart =
+    sanitizedFont && !isPredefinedFont ? sanitizeGoogleFontUrl(sanitizedFont) : null;
+  const googleFontsImport = googleFontUrlPart
+    ? `@import url('https://fonts.googleapis.com/css2?family=${googleFontUrlPart}&display=swap');`
+    : '';
+
+  const width = params.width || 800;
+  const height = params.height || 170;
+
+  // Extract the last 30 days of contributions
+  const days: number[] = [];
+  calendar.weeks.forEach((week) => {
+    week.contributionDays.forEach((day) => {
+      days.push(
+        params.mode === 'loc'
+          ? (day.locAdditions || 0) + (day.locDeletions || 0)
+          : day.contributionCount
+      );
+    });
+  });
+
+  const pulseDays = days.slice(-30);
+  const pulseTotal = pulseDays.reduce((sum, count) => sum + count, 0);
+
+  const maxCount = Math.max(...pulseDays, 1);
+  const minCount = Math.min(...pulseDays);
+  const range = maxCount - minCount || 1;
+
+  const paddingX = 40;
+  const paddingYTop = 80;
+  const paddingYBottom = 30;
+  const graphWidth = width - paddingX * 2;
+  const graphHeight = height - paddingYTop - paddingYBottom;
+
+  const stepX = graphWidth / Math.max(pulseDays.length - 1, 1);
+
+  let pathD = '';
+  pulseDays.forEach((count, i) => {
+    const x = paddingX + i * stepX;
+    const normalized = (count - minCount) / range;
+    const y = paddingYTop + graphHeight - normalized * graphHeight;
+
+    if (i === 0) {
+      pathD += `M ${x} ${y}`;
+    } else {
+      const prevCount = pulseDays[i - 1];
+      const prevNormalized = (prevCount - minCount) / range;
+      const prevX = paddingX + (i - 1) * stepX;
+      const prevY = paddingYTop + graphHeight - prevNormalized * graphHeight;
+
+      const cp1X = prevX + stepX / 2;
+      const cp1Y = prevY;
+      const cp2X = x - stepX / 2;
+      const cp2Y = y;
+
+      pathD += ` C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${x} ${y}`;
+    }
+  });
+
+  const bottomY = paddingYTop + graphHeight;
+  const lastX = paddingX + (pulseDays.length - 1) * stepX;
+  const firstX = paddingX;
+  const areaPathD = `${pathD} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
+
+  const lastCount = pulseDays[pulseDays.length - 1] ?? 0;
+  const lastNormalized = (lastCount - minCount) / range;
+  const lastY = paddingYTop + graphHeight - lastNormalized * graphHeight;
+
+  return `
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="${width}"
+  height="${height}"
+  viewBox="0 0 ${width} ${height}"
+  fill="none"
+  role="img"
+>
+  <title>Heartbeat Sparkline for ${safeUser}</title>
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=Fira+Code&amp;family=JetBrains+Mono&amp;family=Roboto&amp;family=Syncopate:wght@400;700&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap');
+  ${googleFontsImport}
+
+  .title { font-family: ${selectedFont || '"Syncopate", sans-serif'}; fill: ${text}; font-size: 16px; letter-spacing: 2px; font-weight: 700; opacity: 0.9; }
+  .stats { font-family: ${statsFont}; fill: ${accent}; font-size: 28px; font-weight: 600; letter-spacing: 0; }
+  .label { font-family: "Roboto", sans-serif; fill: ${text}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; opacity: 0.5; }
+  .pulse-area {
+    fill: url(#areaGradient);
+    animation: fade-in 1.5s ease-out forwards;
+    opacity: 0;
+    animation-delay: 0.5s;
+  }
+  .pulse-line { 
+    stroke: ${accent}; 
+    stroke-width: 2.5; 
+    stroke-linecap: round; 
+    stroke-linejoin: round; 
+    fill: none; 
+    filter: url(#glow);
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: draw 2s ease-out forwards;
+  }
+  @keyframes draw {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pulse-line { animation: none !important; stroke-dashoffset: 0; }
+    .pulse-area { animation: none !important; opacity: 1; }
+  }
+  </style>
+
+  <defs>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="aurora-blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="30" />
+    </filter>
+    <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0.0" />
+    </linearGradient>
+  </defs>
+
+  <rect width="${width}" height="${height}" rx="${radius}" fill="${params.hideBackground ? 'transparent' : bg}" />
+
+  <!-- Ambient Aurora Backglow -->
+  <ellipse cx="${width / 2}" cy="${height / 2 + 10}" rx="${width / 4}" ry="30" fill="${accent}" opacity="0.12" filter="url(#aurora-blur)" />
+
+  <!-- Elegant horizontal split guides -->
+  <line x1="${paddingX}" y1="${paddingYTop}" x2="${width - paddingX}" y2="${paddingYTop}" stroke="${text}" stroke-width="0.75" stroke-opacity="0.05" />
+  <line x1="${paddingX}" y1="${paddingYTop + graphHeight}" x2="${width - paddingX}" y2="${paddingYTop + graphHeight}" stroke="${text}" stroke-width="0.75" stroke-opacity="0.05" />
+
+  ${!params.hide_title ? `<text x="30" y="38" class="title">${safeUser.toUpperCase()}</text>` : ''}
+  ${
+    !params.hide_stats
+      ? `
+  <text x="${width - 30}" y="42" text-anchor="end" class="stats">${pulseTotal} ${params.mode === 'loc' ? 'LINES' : 'COMMITS'}</text>
+  <text x="${width - 30}" y="58" text-anchor="end" class="label">LAST 30 DAYS</text>
+  `
+      : ''
+  }
+
+  <path class="pulse-area" d="${areaPathD}" />
+  <path class="pulse-line" d="${pathD}" pathLength="1" />
+
+  <!-- Today Heartbeat Indicator -->
+  <g>
+    <circle cx="${lastX}" cy="${lastY}" r="7" fill="${accent}" opacity="0.4">
+      <animate attributeName="r" values="5;10;5" dur="2s" repeatCount="indefinite" />
+      <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="${lastX}" cy="${lastY}" r="3.5" fill="#ffffff" stroke="${accent}" stroke-width="1.5" />
+  </g>
+</svg>
+`;
+}
+function generateAutoThemePulseSVG(
+  stats: StreakStats,
+  params: BadgeParams,
+  calendar: ContributionCalendar
+): string {
+  const light = AUTO_THEME_LIGHT;
+  const dark = AUTO_THEME_DARK;
+  const safeUser = escapeXML(params.user || 'GitHub User');
+
+  const sanitizedFont = sanitizeFont(params.font);
+  const predefinedFont = sanitizedFont
+    ? (FONT_MAP[sanitizedFont.toLowerCase() as keyof typeof FONT_MAP] ?? null)
+    : null;
+  const isPredefinedFont = Boolean(predefinedFont);
+  const selectedFont = isPredefinedFont
+    ? predefinedFont
+    : sanitizedFont
+      ? `"${sanitizedFont}", sans-serif`
+      : null;
+
+  const statsFont = selectedFont || '"Space Grotesk", sans-serif';
+  const parsedRadius = Number(params.radius);
+  const radius = Math.max(0, Math.min(Number.isNaN(parsedRadius) ? 8 : parsedRadius, 50));
+
+  const googleFontUrlPart =
+    sanitizedFont && !isPredefinedFont ? sanitizeGoogleFontUrl(sanitizedFont) : null;
+  const googleFontsImport = googleFontUrlPart
+    ? `@import url('https://fonts.googleapis.com/css2?family=${googleFontUrlPart}&amp;display=swap');`
+    : '';
+
+  const width = params.width || 800;
+  const height = params.height || 170;
+
+  const days: number[] = [];
+  calendar.weeks.forEach((week) => {
+    week.contributionDays.forEach((day) => {
+      days.push(
+        params.mode === 'loc'
+          ? (day.locAdditions || 0) + (day.locDeletions || 0)
+          : day.contributionCount
+      );
+    });
+  });
+
+  const pulseDays = days.slice(-30);
+  const pulseTotal = pulseDays.reduce((sum, count) => sum + count, 0);
+
+  const maxCount = Math.max(...pulseDays, 1);
+  const minCount = Math.min(...pulseDays);
+  const range = maxCount - minCount || 1;
+
+  const paddingX = 40;
+  const paddingYTop = 80;
+  const paddingYBottom = 30;
+  const graphWidth = width - paddingX * 2;
+  const graphHeight = height - paddingYTop - paddingYBottom;
+
+  const stepX = graphWidth / Math.max(pulseDays.length - 1, 1);
+
+  let pathD = '';
+  pulseDays.forEach((count, i) => {
+    const x = paddingX + i * stepX;
+    const normalized = (count - minCount) / range;
+    const y = paddingYTop + graphHeight - normalized * graphHeight;
+
+    if (i === 0) {
+      pathD += `M ${x} ${y}`;
+    } else {
+      const prevCount = pulseDays[i - 1];
+      const prevNormalized = (prevCount - minCount) / range;
+      const prevX = paddingX + (i - 1) * stepX;
+      const prevY = paddingYTop + graphHeight - prevNormalized * graphHeight;
+
+      const cp1X = prevX + stepX / 2;
+      const cp1Y = prevY;
+      const cp2X = x - stepX / 2;
+      const cp2Y = y;
+
+      pathD += ` C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${x} ${y}`;
+    }
+  });
+
+  const bottomY = paddingYTop + graphHeight;
+  const lastX = paddingX + (pulseDays.length - 1) * stepX;
+  const firstX = paddingX;
+  const areaPathD = `${pathD} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
+
+  const lastCount = pulseDays[pulseDays.length - 1] ?? 0;
+  const lastNormalized = (lastCount - minCount) / range;
+  const lastY = paddingYTop + graphHeight - lastNormalized * graphHeight;
+
+  return `
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="${width}"
+  height="${height}"
+  viewBox="0 0 ${width} ${height}"
+  fill="none"
+  role="img"
+>
+  <title>Heartbeat Sparkline for ${safeUser}</title>
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=Fira+Code&amp;family=JetBrains+Mono&amp;family=Roboto&amp;family=Syncopate:wght@400;700&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap');
+  ${googleFontsImport}
+
+  :root { --cp-bg: #${light.bg}; --cp-text: #${light.text}; --cp-accent: #${light.accent}; }
+  @media (prefers-color-scheme: dark) { :root { --cp-bg: #${dark.bg}; --cp-text: #${dark.text}; --cp-accent: #${dark.accent}; } }
+  .cp-bg-fill { fill: var(--cp-bg); } 
+
+  .title { font-family: ${selectedFont || '"Syncopate", sans-serif'}; fill: var(--cp-text); font-size: 16px; letter-spacing: 2px; font-weight: 700; opacity: 0.9; }
+  .stats { font-family: ${statsFont}; fill: var(--cp-accent); font-size: 28px; font-weight: 600; letter-spacing: 0; }
+  .label { font-family: "Roboto", sans-serif; fill: var(--cp-text); font-size: 10px; font-weight: 500; letter-spacing: 1.5px; opacity: 0.5; }
+  .pulse-area {
+    fill: url(#areaGradient);
+    animation: fade-in 1.5s ease-out forwards;
+    opacity: 0;
+    animation-delay: 0.5s;
+  }
+  .pulse-line { 
+    stroke: var(--cp-accent); 
+    stroke-width: 2.5; 
+    stroke-linecap: round; 
+    stroke-linejoin: round; 
+    fill: none; 
+    filter: url(#glow);
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: draw 2s ease-out forwards;
+  }
+  @keyframes draw {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pulse-line { animation: none !important; stroke-dashoffset: 0; }
+    .pulse-area { animation: none !important; opacity: 1; }
+  }
+  </style>
+
+  <defs>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="aurora-blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="30" />
+    </filter>
+    <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="var(--cp-accent)" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="var(--cp-accent)" stop-opacity="0.0" />
+    </linearGradient>
+  </defs>
+
+  <rect width="${width}" height="${height}" rx="${radius}" class="${params.hideBackground ? '' : 'cp-bg-fill'}" fill="${params.hideBackground ? 'transparent' : ''}" />
+
+  <!-- Ambient Aurora Backglow -->
+  <ellipse cx="${width / 2}" cy="${height / 2 + 10}" rx="${width / 4}" ry="30" fill="var(--cp-accent)" opacity="0.12" filter="url(#aurora-blur)" />
+
+  <!-- Elegant horizontal split guides -->
+  <line x1="${paddingX}" y1="${paddingYTop}" x2="${width - paddingX}" y2="${paddingYTop}" stroke="var(--cp-text)" stroke-width="0.75" stroke-opacity="0.05" />
+  <line x1="${paddingX}" y1="${paddingYTop + graphHeight}" x2="${width - paddingX}" y2="${paddingYTop + graphHeight}" stroke="var(--cp-text)" stroke-width="0.75" stroke-opacity="0.05" />
+
+  ${!params.hide_title ? `<text x="30" y="38" class="title">${safeUser.toUpperCase()}</text>` : ''}
+  ${
+    !params.hide_stats
+      ? `
+  <text x="${width - 30}" y="42" text-anchor="end" class="stats">${pulseTotal} ${params.mode === 'loc' ? 'LINES' : 'COMMITS'}</text>
+  <text x="${width - 30}" y="58" text-anchor="end" class="label">LAST 30 DAYS</text>
+  `
+      : ''
+  }
+
+  <path class="pulse-area" d="${areaPathD}" />
+  <path class="pulse-line" d="${pathD}" pathLength="1" />
+
+  <!-- Today Heartbeat Indicator -->
+  <g>
+    <circle cx="${lastX}" cy="${lastY}" r="7" fill="var(--cp-accent)" opacity="0.4">
+      <animate attributeName="r" values="5;10;5" dur="2s" repeatCount="indefinite" />
+      <animate attributeName="opacity" values="0.4;0;0.4" dur="2s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="${lastX}" cy="${lastY}" r="3.5" fill="#ffffff" stroke="var(--cp-accent)" stroke-width="1.5" />
+  </g>
+</svg>
+`;
+}
+
 export function generateRateLimitSVG(
   bg: string,
   accent: string,
