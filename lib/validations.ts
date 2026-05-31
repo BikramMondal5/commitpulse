@@ -65,9 +65,38 @@ const baseStreakParamsSchema = z.object({
   user: z
     .string({ error: 'Missing user parameter' })
     .min(1, { message: 'Missing user parameter' })
-    .max(39, { message: 'GitHub username cannot exceed 39 characters' })
-    .regex(GITHUB_USERNAME_REGEX, {
-      message: 'Invalid GitHub username',
+    .superRefine((val, ctx) => {
+      const users = val.split(',').map((u) => u.trim());
+      if (users.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Missing user parameter',
+        });
+        return;
+      }
+      for (const u of users) {
+        if (u.length === 0) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Invalid GitHub username',
+          });
+          return;
+        }
+        if (u.length > 39) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'GitHub username cannot exceed 39 characters',
+          });
+          return;
+        }
+        if (!GITHUB_USERNAME_REGEX.test(u)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Invalid GitHub username',
+          });
+          return;
+        }
+      }
     }),
 
   theme: z.string().default('dark'),

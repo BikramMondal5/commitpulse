@@ -1337,4 +1337,51 @@ describe('GET /api/streak', () => {
       expect(body).toContain('strictly for organizations');
     });
   });
+
+  describe('multi-user skyline merges', () => {
+    it('fetches calendars concurrently, aggregates them, and overrides the title in the SVG', async () => {
+      vi.mocked(fetchGitHubContributions)
+        .mockResolvedValueOnce({
+          calendar: mockCalendar,
+          repoContributions: [],
+        } as unknown as ExtendedContributionData)
+        .mockResolvedValueOnce({
+          calendar: mockCalendar,
+          repoContributions: [],
+        } as unknown as ExtendedContributionData);
+
+      const response = await GET(makeRequest({ user: 'a, b' }));
+      expect(response.status).toBe(200);
+
+      expect(fetchGitHubContributions).toHaveBeenCalledWith('a', expect.any(Object));
+      expect(fetchGitHubContributions).toHaveBeenCalledWith('b', expect.any(Object));
+
+      const body = await response.text();
+      expect(body).toContain('A + B');
+    });
+
+    it('gracefully handles partial fetch failures by filtering out failed calendars', async () => {
+      vi.mocked(fetchGitHubContributions)
+        .mockResolvedValueOnce({
+          calendar: mockCalendar,
+          repoContributions: [],
+        } as unknown as ExtendedContributionData)
+        .mockRejectedValueOnce(new Error('GitHub user "b" not found'));
+
+      const response = await GET(makeRequest({ user: 'a, b' }));
+      expect(response.status).toBe(200);
+
+      const body = await response.text();
+      expect(body).toContain('A + B');
+    });
+
+    it('returns a 404/error response when all users in the list fail to load', async () => {
+      vi.mocked(fetchGitHubContributions)
+        .mockRejectedValueOnce(new Error('GitHub user "a" not found'))
+        .mockRejectedValueOnce(new Error('GitHub user "b" not found'));
+
+      const response = await GET(makeRequest({ user: 'a, b' }));
+      expect(response.status).toBe(404);
+    });
+  });
 });

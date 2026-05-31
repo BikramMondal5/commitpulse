@@ -2,7 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import { fetchGitHubContributions, getOrgDashboardData } from '@/lib/github';
-import { calculateStreak, calculateMonthlyStats } from '@/lib/calculate';
+import { calculateStreak, calculateMonthlyStats, aggregateCalendars } from '@/lib/calculate';
 import {
   generateNotFoundSVG,
   generateRateLimitSVG,
@@ -13,7 +13,7 @@ import {
   generatePulseSVG,
 } from '@/lib/svg/generator';
 import { getSecondsUntilUTCMidnight, getSecondsUntilMidnightInTimezone } from '@/utils/time';
-import type { BadgeParams } from '@/types';
+import type { BadgeParams, ContributionCalendar } from '@/types';
 import { themes } from '@/lib/svg/themes';
 import { streakParamsSchema } from '@/lib/validations';
 
@@ -127,7 +127,15 @@ export async function GET(request: Request) {
     })();
 
     // If 'org' is provided, we use it as the display user
-    const targetEntity = org || user;
+    const targetEntity =
+      org ||
+      (user.includes(',')
+        ? user
+            .split(',')
+            .map((u) => u.trim())
+            .slice(0, 2)
+            .join(' + ')
+        : user);
     const borderParam = searchParams.get('border');
     const sanitizedBorder = borderParam ? borderParam.replace(/[^a-fA-F0-9]/g, '') : undefined;
     const animate = searchParams.get('animate') !== 'false';
@@ -176,6 +184,34 @@ export async function GET(request: Request) {
         to,
       });
       calendar = orgData.calendar;
+    } else if (user.includes(',')) {
+      const users = user
+        .split(',')
+        .map((u) => u.trim())
+        .filter(Boolean);
+      let lastError: unknown = null;
+      const fetchedCalendars = await Promise.all(
+        users.map(async (u) => {
+          try {
+            const userData = await fetchGitHubContributions(u, {
+              bypassCache: refresh,
+              from,
+              to,
+            });
+            return userData.calendar;
+          } catch (err) {
+            lastError = err;
+            return null;
+          }
+        })
+      );
+      const successfulCalendars = fetchedCalendars.filter(
+        (c): c is ContributionCalendar => c !== null
+      );
+      if (successfulCalendars.length === 0) {
+        throw lastError || new Error('No successful calendars fetched');
+      }
+      calendar = aggregateCalendars(successfulCalendars);
     } else {
       const userData = await fetchGitHubContributions(user, {
         bypassCache: refresh,

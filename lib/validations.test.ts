@@ -98,6 +98,47 @@ describe('streakParamsSchema user validation', () => {
 
     expect(result.success).toBe(true);
   });
+
+  it('should pass when user is a comma-separated list of valid usernames', () => {
+    const result = streakParamsSchema.safeParse({
+      user: 'octocat, JhaSourav07, nishtha-agarwal-211',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('should fail when one of the usernames in the list is invalid', () => {
+    const result = streakParamsSchema.safeParse({
+      user: 'octocat, invalid_name_with_spaces',
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe('Invalid GitHub username');
+    }
+  });
+
+  it('should fail when one of the usernames in the list exceeds 39 characters', () => {
+    const result = streakParamsSchema.safeParse({
+      user: `octocat, ${'a'.repeat(40)}`,
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe('GitHub username cannot exceed 39 characters');
+    }
+  });
+
+  it('should fail when list has empty usernames due to consecutive or trailing commas', () => {
+    const result = streakParamsSchema.safeParse({
+      user: 'octocat, , JhaSourav07',
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe('Invalid GitHub username');
+    }
+  });
 });
 
 describe('streakParamsSchema', () => {
