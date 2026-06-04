@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ThemeToggleButton } from './theme-switch';
 
@@ -25,12 +25,12 @@ function createLocalStorageMock(initial: Record<string, string | null> = {}) {
 describe('ThemeSwitch mock integrations', () => {
   let originalLocalStorage: Storage;
   let originalMatchMedia: typeof window.matchMedia;
-  let originalDocumentElementClassList: DOMTokenList;
+  let originalDocumentElementClassList: string;
 
   beforeEach(() => {
     originalLocalStorage = window.localStorage;
     originalMatchMedia = window.matchMedia;
-    originalDocumentElementClassList = document.documentElement.classList;
+    originalDocumentElementClassList = document.documentElement.className;
   });
 
   afterEach(() => {
@@ -46,7 +46,7 @@ describe('ThemeSwitch mock integrations', () => {
       value: originalMatchMedia,
     });
 
-    document.documentElement.classList = originalDocumentElementClassList;
+    document.documentElement.className = originalDocumentElementClassList;
     vi.restoreAllMocks();
   });
 
@@ -212,10 +212,7 @@ describe('ThemeSwitch mock integrations', () => {
       })),
     });
 
-    document.documentElement.classList = {
-      ...document.documentElement.classList,
-      toggle: vi.fn(),
-    } as unknown as DOMTokenList;
+    vi.spyOn(document.documentElement.classList, 'toggle').mockImplementation(vi.fn());
     document.documentElement.style.colorScheme = 'light';
 
     render(<ThemeToggleButton />);
