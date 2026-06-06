@@ -487,18 +487,6 @@ export default function LandingPage() {
     } catch {
       setCopied(false);
     }
-
-    trackUser(trimmedUsername);
-    addSearch(trimmedUsername);
-    setCopied(true);
-
-    scrollToGuideTimeoutRef.current = setTimeout(() => {
-      guideRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 80);
-
-    resetCopiedTimeoutRef.current = setTimeout(() => {
-      setCopied(false);
-    }, 50000);
   };
 
   const selectDemoUser = (name: string) => {
