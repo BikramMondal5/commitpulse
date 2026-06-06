@@ -195,6 +195,21 @@ describe('GrowthTrendChart', () => {
     expect(svgElement?.getAttribute('class')).toContain('w-full');
   });
 
+  it('renders reduced month labels to avoid overlap on small screens', () => {
+    const { container } = render(
+      <GrowthTrendChart
+        activityA={activityA}
+        activityB={activityB}
+        labelA="User A"
+        labelB="User B"
+      />
+    );
+
+    const monthLabels = container.querySelectorAll('text[text-anchor="middle"]');
+    expect(monthLabels.length).toBeLessThanOrEqual(7);
+    expect(monthLabels.length).toBeGreaterThan(0);
+  });
+
   it('handles empty activity data gracefully without crashing', () => {
     const { container } = render(
       <GrowthTrendChart activityA={[]} activityB={[]} labelA="User A" labelB="User B" />
