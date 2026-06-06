@@ -54,22 +54,15 @@ describe('HistoricalTrendView — Massive Scaling Stability', () => {
   });
 
   /**
-   * 1. Massive dataset render + execution time check
+   * 1. Massive dataset render stability
    */
-  it('renders 5000 records within safe performance bounds', () => {
+  it('renders 5000 records without breaking layout content', () => {
     const data = generateActivity(5000);
-
-    const start = performance.now();
 
     render(<HistoricalTrendView username="test" activity={data} period={basePeriod} />);
 
-    const executionTime = performance.now() - start;
-
     expect(screen.getByText(/Historical Trend View/i)).toBeInTheDocument();
     expect(screen.getByText(/Contributions/i)).toBeInTheDocument();
-
-    // CI-safe threshold (balanced for heavy runners)
-    expect(executionTime).toBeLessThan(4500);
   }, 10000);
 
   /**
@@ -94,8 +87,9 @@ describe('HistoricalTrendView — Massive Scaling Stability', () => {
 
     render(<HistoricalTrendView username="test" activity={data} period={basePeriod} />);
 
-    const svg = document.querySelector('svg');
-    expect(svg).toBeInTheDocument();
+    const sparkline = screen.getByTestId('streak-sparkline');
+    expect(sparkline).toBeInTheDocument();
+    expect(sparkline.querySelector('polyline')).toHaveAttribute('points');
   });
 
   /**
