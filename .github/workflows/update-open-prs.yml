@@ -1,0 +1,50 @@
+name: Update Open Pull Requests with Main
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-prs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch and update open PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Fetching open pull requests..."
+          # Retrieve numbers of all open pull requests
+          prs=$(gh pr list --state open --json number,title,headRefName --jq '.[] | "\(.number)|\(.title)|\(.headRefName)"')
+
+          if [ -z "$prs" ]; then
+            echo "No open pull requests found."
+            exit 0
+          fi
+
+          echo "Starting update process for open PRs..."
+
+          # Read each line
+          echo "$prs" | while IFS='|' read -r pr_number pr_title pr_branch; do
+            echo "=================================================="
+            echo "Processing PR #${pr_number}: \"${pr_title}\" on branch \"${pr_branch}\""
+            echo "=================================================="
+            
+            # Attempt to update the branch with main
+            if gh pr update-branch "$pr_number"; then
+              echo "✅ Successfully updated PR #${pr_number} with the latest main branch."
+            else
+              echo "⚠️ Failed to update PR #${pr_number}. This is typically due to:"
+              echo "  1. Merge conflicts between the PR branch and main."
+              echo "  2. Branch protection rules prohibiting updates."
+              echo "  3. The PR being from a fork repository where we lack write permissions."
+            fi
+            echo ""
+          done
