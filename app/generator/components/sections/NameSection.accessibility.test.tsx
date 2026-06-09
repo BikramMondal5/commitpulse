@@ -28,6 +28,9 @@ describe('NameSection Accessibility', () => {
 
     const toggleButton = screen.getByRole('button', { name: /name/i });
 
+    document.body.focus();
+    expect(document.body).toHaveFocus();
+
     await user.tab();
 
     expect(toggleButton).toHaveFocus();
