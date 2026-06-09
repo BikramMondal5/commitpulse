@@ -709,8 +709,16 @@ async function fetchContributionsUncached(
   }
 
   let calendar = data.data.user.contributionsCollection?.contributionCalendar;
-  const repoContributions =
-    data.data.user.contributionsCollection?.commitContributionsByRepository || [];
+
+  // 🔽 CHANGE THIS SECTION 🔽
+  let repoContributions = data.data.user.contributionsCollection?.commitContributionsByRepository;
+  if (!repoContributions || !Array.isArray(repoContributions)) {
+    console.warn(
+      `[CommitPulse API] Empty profile or null repository nodes discovered for user "${username}". Falling back to baseline collection.`
+    );
+    repoContributions = [];
+  }
+  // 🔼 END OF CHANGE 🔼
 
   if (!calendar || !calendar.weeks) {
     calendar = {
