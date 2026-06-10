@@ -15,13 +15,9 @@ import {
   generateSkylineSVG,
   generateLanguagesSVG,
 } from '@/lib/svg/generator';
+import { generateConstellationSVG } from '@/lib/svg/constellation';
 import { getSecondsUntilUTCMidnight, getSecondsUntilMidnightInTimezone } from '@/utils/time';
-import type {
-  BadgeParams,
-  ContributionCalendar,
-  RepoContribution,
-  ExtendedContributionData,
-} from '@/types';
+import type { BadgeParams, RepoContribution, ExtendedContributionData } from '@/types';
 import { themes } from '@/lib/svg/themes';
 import { streakParamsSchema } from '@/lib/validations';
 import { sanitizeHexColor, sanitizeRadius } from '@/lib/svg/sanitizer';
@@ -82,6 +78,7 @@ export async function GET(request: Request) {
       from: customFrom,
       to: customTo,
       refresh,
+      bypassCache: bypassCacheParam,
       hide_title,
       hide_background,
       hide_stats,
@@ -107,6 +104,7 @@ export async function GET(request: Request) {
       glow,
       format,
       days,
+      label,
       badges,
       entrance,
     } = parseResult.data;
@@ -116,8 +114,13 @@ export async function GET(request: Request) {
       | 'heatmap'
       | 'pulse'
       | 'skyline'
-      | 'languages';
+      | 'languages'
+      | 'constellation';
     const themeName = theme || 'dark';
+
+    // Treat either ?refresh=true or ?bypassCache=true as a cache-bypass request
+    const isRefreshRequested = refresh || bypassCacheParam;
+    const shouldBypassCache = isRefreshRequested;
 
     let timezone = 'UTC';
     if (tzParam) {
@@ -125,25 +128,31 @@ export async function GET(request: Request) {
         timezone = new Intl.DateTimeFormat(undefined, { timeZone: tzParam }).resolvedOptions()
           .timeZone;
       } catch (error) {
-        if (error instanceof RangeError) {
-          const validationErr = new Error(`Invalid timezone: ${tzParam}`);
-          validationErr.name = 'ValidationError';
-          throw validationErr;
+        if (error instanceof Error && error.name === 'ValidationError') {
+          return NextResponse.json({ error: error.message }, { status: 400 });
         }
-        throw error;
       }
     }
 
-    let from = customFrom
-      ? new Date(customFrom).toISOString()
-      : year
-        ? `${year}-01-01T00:00:00Z`
-        : undefined;
-    let to = customTo
-      ? new Date(customTo).toISOString()
-      : year
-        ? `${year}-12-31T23:59:59Z`
-        : undefined;
+    const parseDate = (value?: string) => {
+      if (!value) {
+        return undefined;
+      }
+
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        const validationErr = new Error(`Invalid date: ${value}`);
+        validationErr.name = 'ValidationError';
+        throw validationErr;
+      }
+
+      return date.toISOString();
+    };
+
+    let from = parseDate(customFrom) ?? (year ? `${year}-01-01T00:00:00Z` : undefined);
+
+    let to = parseDate(customTo) ?? (year ? `${year}-12-31T23:59:59Z` : undefined);
 
     if (normalizedView === 'monthly') {
       const referenceDate = getMonthlyReferenceDate(year, timezone) || new Date();
@@ -208,7 +217,7 @@ export async function GET(request: Request) {
       accent: isAutoTheme ? selectedTheme.accent : accent || selectedTheme.accent,
       border: sanitizedBorder,
       radius,
-      speed: speed && /^(?:[2-9]|1\d|20)s$/.test(speed) ? speed : '8s',
+      speed,
       scale,
       font,
       autoTheme: isAutoTheme,
@@ -246,6 +255,7 @@ export async function GET(request: Request) {
       disable_particles,
       glow,
       animate,
+      label,
       badges,
       entrance,
     };
@@ -257,7 +267,7 @@ export async function GET(request: Request) {
     // Fetch Organization Mega-City Data OR Single User Data
     if (org) {
       const orgData = await getOrgDashboardData(org, {
-        bypassCache: refresh,
+        bypassCache: shouldBypassCache,
         from,
         to,
       });
@@ -281,7 +291,7 @@ export async function GET(request: Request) {
         users.map(async (u) => {
           try {
             const userData = await fetchGitHubContributions(u, {
-              bypassCache: refresh,
+              bypassCache: shouldBypassCache,
               from,
               to,
             });
@@ -311,7 +321,7 @@ export async function GET(request: Request) {
       }
     } else {
       const userData = await fetchGitHubContributions(user, {
-        bypassCache: refresh,
+        bypassCache: shouldBypassCache,
         from,
         to,
       });
@@ -323,7 +333,7 @@ export async function GET(request: Request) {
 
       if (versus) {
         const versusData = await fetchGitHubContributions(versus, {
-          bypassCache: refresh,
+          bypassCache: shouldBypassCache,
           from,
           to,
         });
@@ -361,9 +371,13 @@ export async function GET(request: Request) {
       const secondsToMidnight = tzParam
         ? getSecondsUntilMidnightInTimezone(timezone)
         : getSecondsUntilUTCMidnight();
-      const cacheControl = refresh
+      const cacheControl = isRefreshRequested
         ? 'no-cache, no-store, must-revalidate'
         : `public, s-maxage=${secondsToMidnight}, stale-while-revalidate=86400`;
+
+      const cacheStatusHeader = shouldBypassCache
+        ? `BYPASS, fetched=${new Date().toISOString()}`
+        : 'HIT';
 
       const jsonPayload = JSON.stringify({
         user: targetEntity,
@@ -397,7 +411,7 @@ export async function GET(request: Request) {
           'Content-Type': 'application/json',
           'Cache-Control': cacheControl,
           ETag: weakEtag,
-          'X-Cache-Status': refresh ? `BYPASS, fetched=${new Date().toISOString()}` : 'HIT',
+          'X-Cache-Status': cacheStatusHeader,
         },
       });
     }
@@ -425,6 +439,9 @@ export async function GET(request: Request) {
     } else if (normalizedView === 'skyline') {
       const stats = calculateStreak(calendar, timezone, undefined, grace);
       svg = generateSkylineSVG(stats, params, calendar);
+    } else if (normalizedView === 'constellation') {
+      const stats = calculateStreak(calendar, timezone, undefined, grace);
+      svg = generateConstellationSVG(stats, params, calendar);
     } else if (versus && versusCalendar) {
       const stats1 = calculateStreak(calendar, timezone, undefined, grace);
       const stats2 = calculateStreak(versusCalendar, timezone, undefined, grace);
@@ -437,7 +454,7 @@ export async function GET(request: Request) {
     const secondsToMidnight = tzParam
       ? getSecondsUntilMidnightInTimezone(timezone)
       : getSecondsUntilUTCMidnight();
-    const cacheControl = refresh
+    const cacheControl = isRefreshRequested
       ? 'no-cache, no-store, must-revalidate'
       : isHistoricalYear
         ? 'public, s-maxage=31536000, immutable'
@@ -466,7 +483,7 @@ export async function GET(request: Request) {
         'Cache-Control': cacheControl,
         'Content-Security-Policy': SVG_CSP_HEADER,
         ETag: weakEtag,
-        'X-Cache-Status': refresh ? `BYPASS, fetched=${new Date().toISOString()}` : 'HIT',
+        'X-Cache-Status': shouldBypassCache ? `BYPASS, fetched=${new Date().toISOString()}` : 'HIT',
       },
     });
   } catch (error: unknown) {
