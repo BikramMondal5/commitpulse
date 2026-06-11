@@ -6,7 +6,7 @@ describe('buildCacheControlHeader - Massive Data Sets & Extreme High Bounds Scal
     // Testing with maximum safe integer and an arbitrarily large number
     const maxSafe = Number.MAX_SAFE_INTEGER;
     const extremeBound = 999999999999999;
-    
+
     expect(buildCacheControlHeader({ secondsToMidnight: maxSafe })).toBe(
       `public, s-maxage=${maxSafe}, stale-while-revalidate=86400`
     );
@@ -33,7 +33,7 @@ describe('buildCacheControlHeader - Massive Data Sets & Extreme High Bounds Scal
   });
 
   it('4. processes JavaScript numeric edge cases like Infinity and NaN without crashing', () => {
-    // Even if NaN/Infinity aren't standard cache values, the backend utility 
+    // Even if NaN/Infinity aren't standard cache values, the backend utility
     // shouldn't crash when massive calculations yield floating point edge cases.
     expect(buildCacheControlHeader({ secondsToMidnight: Infinity })).toBe(
       'public, s-maxage=Infinity, stale-while-revalidate=86400'
@@ -46,7 +46,7 @@ describe('buildCacheControlHeader - Massive Data Sets & Extreme High Bounds Scal
   it('5. executes massive scale iterations within strict performance margins', () => {
     // Emulate a high-volume caching scenario where thousands of requests are processed
     const iterations = 100000;
-    
+
     const startCalc = performance.now();
     for (let i = 0; i < iterations; i++) {
       // Rotate through different variations to prevent V8 from optimizing away a single pure call
