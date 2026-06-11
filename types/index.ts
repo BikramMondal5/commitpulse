@@ -218,6 +218,18 @@ export interface BadgeParams {
   /** Background fill color as a hex string WITHOUT the leading '#'. Overrides theme default. */
   bg: HexColor;
 
+  /** Background fill color type. 'solid' (default), 'linear', or 'radial' gradient. */
+  bgType?: 'solid' | 'linear' | 'radial';
+
+  /** Start color for the background gradient. Hex string WITHOUT the leading '#'. */
+  bgStart?: HexColor;
+
+  /** End color for the background gradient. Hex string WITHOUT the leading '#'. */
+  bgEnd?: HexColor;
+
+  /** Angle for linear background gradient in degrees (0-360). */
+  bgAngle?: number;
+
   /** Label and stat text color as a hex string WITHOUT the leading '#'. Overrides theme default. */
   text: HexColor;
 

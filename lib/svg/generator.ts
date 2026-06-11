@@ -316,9 +316,43 @@ function renderDefs(sf: number, params: BadgeParams): string {
         )}" result="blur" /><feComposite in="SourceGraphic" in2="blur" operator="over" /></filter>`
       : '';
 
+  let canvasGradient = '';
+  if (params.bgType === 'linear' || params.bgType === 'radial') {
+    const bgStart = params.bgStart
+      ? params.bgStart.startsWith('#')
+        ? params.bgStart
+        : `#${params.bgStart}`
+      : '#0d1117';
+    const bgEnd = params.bgEnd
+      ? params.bgEnd.startsWith('#')
+        ? params.bgEnd
+        : `#${params.bgEnd}`
+      : '#000000';
+    if (params.bgType === 'linear') {
+      const angle = params.bgAngle !== undefined ? params.bgAngle : 90;
+      const angleRad = (angle - 90) * (Math.PI / 180);
+      const x1 = Math.round(50 + Math.cos(angleRad + Math.PI) * 50) + '%';
+      const y1 = Math.round(50 + Math.sin(angleRad + Math.PI) * 50) + '%';
+      const x2 = Math.round(50 + Math.cos(angleRad) * 50) + '%';
+      const y2 = Math.round(50 + Math.sin(angleRad) * 50) + '%';
+      canvasGradient = `
+      <linearGradient id="canvas-gradient" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">
+        <stop offset="0%" stop-color="${bgStart}" />
+        <stop offset="100%" stop-color="${bgEnd}" />
+      </linearGradient>`;
+    } else {
+      canvasGradient = `
+      <radialGradient id="canvas-gradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+        <stop offset="0%" stop-color="${bgStart}" />
+        <stop offset="100%" stop-color="${bgEnd}" />
+      </radialGradient>`;
+    }
+  }
+
   return `<defs>
     ${filterGlow}
     ${gradients}
+    ${canvasGradient}
   </defs>`;
 }
 
@@ -740,6 +774,8 @@ export function generateSVG(
   const animate = params.animate ?? true;
   const safeUser = escapeXML(params.user || 'GitHub User');
   const bg = `#${sanitizeHexColor(params.bg, '0d1117')}`;
+  const bgFill =
+    params.bgType === 'linear' || params.bgType === 'radial' ? 'url(#canvas-gradient)' : bg;
 
   const accent = Array.isArray(params.accent)
     ? params.accent.map((c) => sanitizeHexColor(c, '00ffaa'))
@@ -796,7 +832,7 @@ export function generateSVG(
 <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${W} ${H}" fill="none" role="img" aria-labelledby="cp-title-${safeId}" aria-describedby="cp-desc-${safeId}">
   ${renderHeader(safeUser, stats, sf, params, safeId)}
   ${renderStyle(selectedFont, statsFont, googleFontsImport, text, mainAccentHex, sf, bg, params.entrance || 'rise')}
-  <rect width="${W}" height="${H}" rx="${radius}" fill="${params.hideBackground ? 'transparent' : bg}" ${borderAttr} />
+  <rect width="${W}" height="${H}" rx="${radius}" fill="${params.hideBackground ? 'transparent' : bgFill}" ${borderAttr} />
   <g id="cp-towers" style="transform-origin: center; transform-box: fill-box;" transform="translate(0, ${Math.round((20 + yOffset) * sf)})">${towers}</g>
   ${renderIsometricLabels(calendar, params, text, sf)}
   ${renderFooter(stats, params, labels, safeUser, mainAccentHex, sf)}
@@ -953,6 +989,8 @@ export function generateMonthlySVG(stats: MonthlyStats, params: BadgeParams): st
 
   const safeUser = escapeXML(params.user || 'GitHub User');
   const bg = `#${sanitizeHexColor(params.bg, '0d1117')}`;
+  const bgFill =
+    params.bgType === 'linear' || params.bgType === 'radial' ? 'url(#canvas-gradient)' : bg;
 
   const rawAccent = Array.isArray(params.accent)
     ? params.accent[params.accent.length - 1]
@@ -1027,7 +1065,7 @@ export function generateMonthlySVG(stats: MonthlyStats, params: BadgeParams): st
   }
   </style>
 
-  <rect width="${width}" height="${height}" rx="${radius}" fill="${params.hideBackground ? 'transparent' : bg}" />
+  <rect width="${width}" height="${height}" rx="${radius}" fill="${params.hideBackground ? 'transparent' : bgFill}" />
 
   <text x="20" y="40" class="title">${stats.currentMonthName.toUpperCase()}</text>
   <text x="20" y="85" class="stats">${stats.currentMonthTotal}</text>
@@ -1057,6 +1095,8 @@ export function generateWrappedSVG(
 ): string {
   const safeUser = escapeXML(params.user || 'GitHub User');
   const bg = `#${sanitizeHexColor(params.bg, '0d1117')}`;
+  const bgFill =
+    params.bgType === 'linear' || params.bgType === 'radial' ? 'url(#canvas-gradient)' : bg;
 
   const rawAccent = Array.isArray(params.accent)
     ? params.accent[params.accent.length - 1]
@@ -1182,7 +1222,7 @@ export function generateWrappedSVG(
 
   const rectFill = params.autoTheme
     ? 'class="cp-bg-fill"'
-    : `fill="${params.hideBackground ? 'transparent' : bg}"`;
+    : `fill="${params.hideBackground ? 'transparent' : bgFill}"`;
   const textClass = params.autoTheme ? 'class="cp-text-fill"' : `fill="${text}"`;
   const accentClass = params.autoTheme ? 'class="cp-accent-fill"' : `fill="${accent}"`;
   const borderStroke = params.autoTheme
@@ -1563,6 +1603,8 @@ export function generateHeatmapSVG(
 
   const safeUser = escapeXML(params.user || 'GitHub User');
   const bg = `#${sanitizeHexColor(params.bg, '0d1117')}`;
+  const bgFill =
+    params.bgType === 'linear' || params.bgType === 'radial' ? 'url(#canvas-gradient)' : bg;
 
   const rawAccent = Array.isArray(params.accent)
     ? params.accent[params.accent.length - 1]
@@ -1659,7 +1701,7 @@ export function generateHeatmapSVG(
   }
   </style>
 
-  <rect width="${W}" height="${H}" rx="${radius}" fill="${params.hideBackground ? 'transparent' : bg}" ${borderAttr} />
+  <rect width="${W}" height="${H}" rx="${radius}" fill="${params.hideBackground ? 'transparent' : bgFill}" ${borderAttr} />
 
   ${!params.hide_title ? `<text x="${s(60)}" y="${s(30)}" class="hm-title">${truncateUsername(safeUser).toUpperCase()}${params.isOfflineFallback ? '<tspan fill="#ff9f43" font-size="10px" font-weight="bold"> [STALE CACHE]</tspan>' : ''}</text>` : ''}
 

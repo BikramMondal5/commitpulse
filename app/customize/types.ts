@@ -70,6 +70,10 @@ export interface CustomizeOptions {
   username: string;
   theme: string;
   bgHex: string;
+  bgType: 'solid' | 'linear' | 'radial';
+  bgStart: string;
+  bgEnd: string;
+  bgAngle: number;
   accentHex: string;
   textHex: string;
   scale: Scale;

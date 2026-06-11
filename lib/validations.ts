@@ -185,6 +185,33 @@ const baseStreakParamsSchema = z.object({
       message: 'bg must be a valid hex color (with or without #)',
     })
     .transform((val) => (val ? sanitizeHexColor(val, '0d1117') : undefined)),
+  bgType: z.enum(['solid', 'linear', 'radial']).catch('solid').default('solid'),
+  bgStart: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^[0-9a-fA-F]{3,4}$|^[0-9a-fA-F]{6,8}$/.test(val.replace('#', '')), {
+      message: 'bgStart must be a valid hex color',
+    })
+    .transform((val) => (val ? sanitizeHexColor(val, '0d1117') : undefined)),
+  bgEnd: z
+    .string()
+    .optional()
+    .refine((val) => !val || /^[0-9a-fA-F]{3,4}$|^[0-9a-fA-F]{6,8}$/.test(val.replace('#', '')), {
+      message: 'bgEnd must be a valid hex color',
+    })
+    .transform((val) => (val ? sanitizeHexColor(val, '0d1117') : undefined)),
+  bgAngle: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (val === undefined || val === '') return true;
+        const num = Number(val);
+        return !isNaN(num) && num >= 0 && num <= 360;
+      },
+      { message: 'bgAngle must be a number between 0 and 360' }
+    )
+    .transform((val) => (val === undefined || val === '' ? undefined : Number(val))),
   text: z
     .string()
     .optional()
