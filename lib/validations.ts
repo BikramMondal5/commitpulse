@@ -10,7 +10,6 @@ import {
   sanitizeFont,
 } from './svg/sanitizer';
 import { themes } from './svg/themes';
-import type { HexColor } from '../types';
 
 export function toBooleanFlag(val?: string): boolean {
   return val === 'true' || val === '1';
