@@ -38,6 +38,21 @@ vi.mock('@/utils/getClientIp', () => ({
   getClientIp: () => '127.0.0.1',
 }));
 
+vi.mock('@/lib/github-owner-verification', () => ({
+  verifyGitHubOwner: vi.fn().mockResolvedValue({
+    verified: true,
+    status: 200,
+    message: '',
+  }),
+}));
+
+vi.mock('@/lib/notification-management-token', () => ({
+  createNotificationManagementToken: vi.fn(() => 'mock-management-token'),
+  getNotificationManagementToken: vi.fn(() => null),
+  hashNotificationManagementToken: vi.fn(() => 'mock-management-token-hash'),
+  verifyNotificationManagementToken: vi.fn(() => false),
+}));
+
 vi.mock('@/lib/rate-limit', () => ({
   notifyRateLimiter: {
     checkWithResult: vi.fn(() =>
@@ -236,19 +251,7 @@ describe('Notify route — Interactive Tooltips, Hovers & Touch Propagation', ()
       expect(getLatestResponse()).not.toBeNull();
     });
 
-    const response = getLatestResponse();
-
-    console.log('STATUS:', response?.status);
-
-    if (response) {
-      try {
-        console.log('BODY:', await response.clone().json());
-      } catch {
-        console.log('NO JSON BODY');
-      }
-    }
-
-    expect(response?.status).toBe(200);
+    expect(getLatestResponse()?.status).toBe(200);
     expect(Notification.findOneAndUpdate).toHaveBeenCalledOnce();
 
     const [filter] = vi.mocked(Notification.findOneAndUpdate).mock.calls[0];
