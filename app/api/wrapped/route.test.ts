@@ -4,6 +4,10 @@ import { GET } from './route';
 vi.mock('../../../lib/github', () => ({
   getWrappedData: vi.fn(),
   fetchGitHubContributions: vi.fn(),
+  getCircuitTelemetry: vi.fn(() => ({
+    isOpen: false,
+    resetAt: null,
+  })),
 }));
 
 import { getWrappedData, fetchGitHubContributions } from '../../../lib/github';
