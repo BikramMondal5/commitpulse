@@ -4,13 +4,10 @@ import { GET } from './route';
 vi.mock('../../../lib/github', () => ({
   getWrappedData: vi.fn(),
   fetchGitHubContributions: vi.fn(),
-  getCircuitTelemetry: vi.fn(() => ({
-    isOpen: false,
-    resetAt: null,
-  })),
+  getCircuitTelemetry: vi.fn().mockReturnValue({ isOpen: false, resetInMs: 0 }),
 }));
 
-import { getWrappedData, fetchGitHubContributions } from '../../../lib/github';
+import { getWrappedData, fetchGitHubContributions, getCircuitTelemetry } from '../../../lib/github';
 import type { ContributionCalendar } from '../../../types';
 import type { WrappedStats } from '../../../types/dashboard';
 import { refreshPolicy } from '../../../services/github/refresh-policy';
@@ -58,6 +55,7 @@ describe('GET /api/wrapped', () => {
     vi.mocked(fetchGitHubContributions).mockResolvedValue({
       calendar: mockCalendar,
     } as unknown as import('../../../types').ExtendedContributionData);
+    vi.mocked(getCircuitTelemetry).mockReturnValue({ isOpen: false, resetInMs: 0 });
   });
 
   describe('parameter validation', () => {
@@ -224,6 +222,18 @@ describe('GET /api/wrapped', () => {
       expect(response.status).toBe(429);
       const body = await response.text();
       expect(body).toContain('RATE LIMITED');
+    });
+
+    it('returns 429 with SVG rate limit card and circuit telemetry headers when circuit is open', async () => {
+      vi.mocked(getWrappedData).mockRejectedValue(new Error('API Rate Limit Exceeded'));
+      vi.mocked(getCircuitTelemetry).mockReturnValue({ isOpen: true, resetInMs: 12345 });
+      const response = await GET(makeRequest({ user: 'octocat' }));
+      expect(response.status).toBe(429);
+      expect(response.headers.get('X-CommitPulse-Circuit-Status')).toBe('Open');
+      expect(response.headers.get('X-CommitPulse-Circuit-Reset-In')).toBe('12345');
+      const body = await response.text();
+      expect(body).toContain('CIRCUIT BREAKER');
+      expect(body).toContain('Circuit breaker active. System is temporarily offline.');
     });
   });
 
