@@ -62,9 +62,14 @@ describe('GET /api/repo-burnout', () => {
     );
     expect(response.status).toBe(200);
     expect(response.headers.get('X-Cache-Status')).toBe('MISS');
-    expect(fetchBurnoutAnalysis).toHaveBeenCalledWith('octocat', 'hello-world', {
-      bypassCache: true,
-    });
+    expect(fetchBurnoutAnalysis).toHaveBeenCalledWith(
+      'octocat',
+      'hello-world',
+      expect.objectContaining({
+        bypassCache: false,
+        token: undefined,
+      })
+    );
   });
 
   it('returns 429 when GitHub API quota is low and refresh is requested', async () => {
@@ -111,9 +116,14 @@ describe('GET /api/repo-burnout', () => {
     );
     expect(response.status).toBe(200);
     expect(response.headers.get('X-Cache-Status')).toBe('MISS');
-    expect(fetchBurnoutAnalysis).toHaveBeenCalledWith('octocat', 'hello-world', {
-      bypassCache: true,
-    });
+    expect(fetchBurnoutAnalysis).toHaveBeenCalledWith(
+      'octocat',
+      'hello-world',
+      expect.objectContaining({
+        bypassCache: true,
+        token: undefined,
+      })
+    );
   });
 
   it('returns 429 when GitHub API quota is low and bypassCache is requested', async () => {
