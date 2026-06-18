@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import DashboardPage, { generateMetadata } from './page';
+import DashboardPage, { DashboardContent, generateMetadata } from './page';
 import { getFullDashboardData } from '@/lib/github';
 
 const { mockNotFound } = vi.hoisted(() => ({
@@ -208,9 +208,9 @@ describe('DashboardPage', () => {
 
   describe('DashboardPage rendering', () => {
     it('renders the dashboard components with the fetched data', async () => {
-      const PageContent = await DashboardPage({
-        params: Promise.resolve({ username: 'octocat' }),
-        searchParams: Promise.resolve({}),
+      const PageContent = await DashboardContent({
+        username: 'octocat',
+        searchParams: {},
       });
 
       render(PageContent);
@@ -242,9 +242,9 @@ describe('DashboardPage', () => {
     });
 
     it('calls getFullDashboardData with bypassCache: true when refresh param is set', async () => {
-      const PageContent = await DashboardPage({
-        params: Promise.resolve({ username: 'octocat' }),
-        searchParams: Promise.resolve({ refresh: 'true' }),
+      const PageContent = await DashboardContent({
+        username: 'octocat',
+        searchParams: { refresh: 'true' },
       });
 
       render(PageContent);
@@ -261,9 +261,9 @@ describe('DashboardPage', () => {
     });
 
     it('passes a calendar-year query through to getFullDashboardData', async () => {
-      const PageContent = await DashboardPage({
-        params: Promise.resolve({ username: 'octocat' }),
-        searchParams: Promise.resolve({ year: '2024' }),
+      const PageContent = await DashboardContent({
+        username: 'octocat',
+        searchParams: { year: '2024' },
       });
 
       render(PageContent);
@@ -280,9 +280,9 @@ describe('DashboardPage', () => {
     });
 
     it('passes the correct activity data to the historical trend view', async () => {
-      const PageContent = await DashboardPage({
-        params: Promise.resolve({ username: 'octocat' }),
-        searchParams: Promise.resolve({}),
+      const PageContent = await DashboardContent({
+        username: 'octocat',
+        searchParams: {},
       });
 
       render(PageContent);
@@ -294,9 +294,9 @@ describe('DashboardPage', () => {
     it('calls notFound when dashboard data fetch throws an error', async () => {
       vi.mocked(getFullDashboardData).mockRejectedValueOnce(new Error('User not found'));
 
-      await DashboardPage({
-        params: Promise.resolve({ username: 'missing-user' }),
-        searchParams: Promise.resolve({}),
+      await DashboardContent({
+        username: 'missing-user',
+        searchParams: {},
       });
 
       expect(mockNotFound).toHaveBeenCalledOnce();
