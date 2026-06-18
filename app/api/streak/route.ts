@@ -314,6 +314,7 @@ export async function GET(request: Request) {
     ) as `${number}s`;
     const params: BadgeParams = {
       user: targetEntity,
+      theme: themeName,
       bg: isAutoTheme ? selectedTheme.bg : bg || selectedTheme.bg,
       bgType,
       bgStart,
