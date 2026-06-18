@@ -752,7 +752,9 @@ export async function fetchGitHubContributions(
 
   if (options.bypassCache || options.forceRefresh) {
     try {
-      return await coalescedLoad();
+      const result = await coalescedLoad();
+      await contributionsCache.set(key, result, LONG_CACHE_TTL);
+      return result;
     } catch (err: unknown) {
       const staleData = await contributionsCache.get(key);
       if (staleData) {
