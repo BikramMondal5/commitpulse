@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next';
 import Navbar from './components/navbar';
 import BrandParticles from '@/components/BrandParticles';
 import ReturnToTop from '@/components/ReturnToTop';
+import ScrollToBottom from '@/components/ScrollToBottom';
 import type { Metadata, Viewport } from 'next';
 import ScrollRestoration from './components/ScrollRestoration';
 import { Providers } from './providers';
@@ -117,6 +118,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
           <ReturnToTop />
+          <ScrollToBottom />
           <KonamiEasterEgg />
           <Analytics />
         </Providers>
