@@ -37,10 +37,10 @@ async function dbConnect() {
     if (!globalThis._mongoClientPromise) {
       if (cached.conn.connection && typeof cached.conn.connection.getClient === 'function') {
         globalThis._mongoClientPromise = Promise.resolve(
-          cached.conn.connection.getClient() as unknown as MongoClient
+          cached.conn.connection.getClient() as MongoClient
         );
       } else {
-        globalThis._mongoClientPromise = Promise.resolve({} as unknown as MongoClient);
+        globalThis._mongoClientPromise = Promise.resolve(undefined as unknown as MongoClient);
       }
     }
     return cached.conn;
@@ -73,9 +73,9 @@ async function dbConnect() {
     globalThis._mongoClientPromise = cached.promise
       .then((m) => {
         if (m && m.connection && typeof m.connection.getClient === 'function') {
-          return m.connection.getClient() as unknown as MongoClient;
+          return m.connection.getClient() as MongoClient;
         }
-        return {} as unknown as MongoClient;
+        return undefined as unknown as MongoClient;
       })
       .catch(() => {
         return undefined as unknown as MongoClient;
