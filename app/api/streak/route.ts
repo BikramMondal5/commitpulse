@@ -312,6 +312,7 @@ export async function GET(request: Request) {
             .join(' + ')
         : user);
     const animate = searchParams.get('animate') !== 'false';
+    const compact = searchParams.get('compact') === 'true';
     // Validate and clamp the speed param to prevent broken SVG animation
     const rawSpeedNum = speed ? parseFloat(String(speed)) : NaN;
     const validatedSpeed = (
@@ -374,6 +375,7 @@ export async function GET(request: Request) {
       entrance,
       theta,
       phi,
+      compact,
     };
 
     let calendar;

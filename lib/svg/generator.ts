@@ -801,6 +801,7 @@ export function generateSVG(
   calendar: ContributionCalendar
 ): string {
   if (params.autoTheme) return generateAutoThemeSVG(stats, params, calendar);
+  if (params.compact) return generateCompactSVG(stats, params);
 
   const animate = params.animate ?? true;
   const safeUser = escapeXML(params.user || 'GitHub User');
@@ -870,6 +871,52 @@ export function generateSVG(
   ${renderIsometricLabels(calendar, params, text, sf)}
   ${renderFooter(stats, params, labels, safeUser, mainAccentHex, sf)}
   ${renderMilestoneBadges(stats, params, sf)}
+</svg>`;
+}
+
+function generateCompactSVG(stats: StreakStats, params: BadgeParams): string {
+  const safeUser = escapeXML(params.user || 'GitHub User');
+  const bg = `#${sanitizeHexColor(params.bg, '0d1117')}`;
+  const text = `#${sanitizeHexColor(params.text, 'ffffff')}`;
+
+  const accentRaw = Array.isArray(params.accent)
+    ? params.accent[params.accent.length - 1]
+    : params.accent;
+  const accent = `#${sanitizeHexColor(accentRaw, '00ffaa')}`;
+
+  const borderAttr = params.border ? `stroke="#${params.border}" stroke-width="2"` : '';
+  const radius = sanitizeRadius(params.radius, 12);
+
+  const sanitizedFont = sanitizeFont(params.font);
+  const selectedFont = resolveFont(sanitizedFont);
+  const isPredefinedFont = isBundledFont(sanitizedFont);
+  const statsFont = selectedFont || '"Space Grotesk", sans-serif';
+  const googleFontUrlPart =
+    sanitizedFont && !isPredefinedFont ? sanitizeGoogleFontUrl(sanitizedFont) : null;
+  const googleFontsImport = googleFontUrlPart
+    ? `@import url('https://fonts.googleapis.com/css2?family=${googleFontUrlPart}&amp;display=swap');`
+    : '';
+
+  const width = 280;
+  const height = 100;
+  const safeId = safeUser.replace(/[^a-zA-Z0-9-]/g, '_').toLowerCase();
+  const titleText = `${truncateUsername(safeUser)}${
+    params.isOfflineFallback ? ' [STALE CACHE]' : ''
+  }`;
+
+  return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" fill="none" role="img" aria-labelledby="cp-title-${safeId}" aria-describedby="cp-desc-${safeId}">
+  <title id="cp-title-${safeId}">CommitPulse Compact Streak for ${safeUser}</title>
+  <desc id="cp-desc-${safeId}">${safeUser} has a current streak of ${stats.currentStreak} days.</desc>
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&amp;family=Space+Grotesk:wght@400;500;600&amp;display=swap');
+  ${googleFontsImport}
+  .cp-compact-title { font-family: ${selectedFont || '"Syncopate", sans-serif'}; fill: ${text}; font-size: 15px; font-weight: 700; letter-spacing: 1px; opacity: 0.9; }
+  .cp-compact-streak { font-family: ${statsFont}; fill: ${accent}; font-size: 20px; font-weight: 600; }
+  </style>
+  <rect width="${width}" height="${height}" rx="${radius}" fill="${params.hideBackground ? 'transparent' : bg}" ${borderAttr} />
+  <text x="20" y="42" class="cp-compact-title">${titleText}</text>
+  <text x="20" y="70" class="cp-compact-streak">${'\u{1F525}'} ${stats.currentStreak}d streak</text>
 </svg>`;
 }
 
