@@ -28,6 +28,7 @@ import ResumeProfileSection from './ResumeProfileSection';
 import { PopularRepos } from './PopularPinnnedRepos';
 
 import RepositoryImpactAnalyzer from './RepositoryImpactAnalyzer';
+import ContributionForecast from './ContributionForecast';
 
 interface DashboardClientProps {
   initialData: DashboardData;
@@ -98,6 +99,9 @@ export default function DashboardClient({
             <StatsCard title="Contributions" value={initialData.stats.totalContributions.toString()} description={period.label} icon="GitCommit" />
           </div>
           <AIInsights insights={initialData.insights} />
+          
+          <ContributionForecast activity={initialData.activity} totalContributions={initialData.stats.totalContributions} />
+
           <PopularRepos popularRepos={initialData.popularRepos || []} pinnedRepos={initialData.pinnedRepos || []} starredRepos={initialData.starredRepos || []} />
           <InactiveRepoReminder repos={allRepoActivity} />
         </aside>
