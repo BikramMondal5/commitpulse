@@ -16,7 +16,18 @@ vi.mock('@/models/Notification', () => ({
 vi.mock('@/lib/rate-limit', () => ({
   notifyRateLimiter: {
     check: vi.fn(),
+    checkWithResult: vi.fn().mockResolvedValue({
+      success: true,
+      limit: 5,
+      remaining: 4,
+      reset: Date.now() + 60000,
+    }),
   },
+  getRateLimitHeaders: vi.fn(() => ({
+    'X-RateLimit-Limit': '5',
+    'X-RateLimit-Remaining': '4',
+    'X-RateLimit-Reset': Date.now().toString(),
+  })),
 }));
 
 vi.mock('@/lib/github-owner-verification', () => ({
@@ -79,7 +90,12 @@ describe('DELETE /api/notify', () => {
   });
 
   it('returns 429 when rate limited', async () => {
-    vi.mocked(notifyRateLimiter.check).mockResolvedValue(false);
+    vi.mocked(notifyRateLimiter.checkWithResult).mockResolvedValueOnce({
+      success: false,
+      limit: 5,
+      remaining: 0,
+      reset: Date.now() + 60000,
+    });
 
     const res = await DELETE(makeRequest('user=testuser'));
 

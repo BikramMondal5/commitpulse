@@ -73,7 +73,7 @@ async function evalRateLimitScript(
         [
           'EVAL',
           RATE_LIMIT_SCRIPT,
-          '1',             // number of KEYS
+          '1', // number of KEYS
           key,
           limit.toString(),
           windowSeconds.toString(),
@@ -97,11 +97,7 @@ async function evalRateLimitScript(
 // Helper: fetch the current counter for an IP from Redis (read-only GET).
 // Returns the count, or null on failure.
 // ---------------------------------------------------------------------------
-async function getCountFromRedis(
-  url: string,
-  token: string,
-  key: string
-): Promise<number | null> {
+async function getCountFromRedis(url: string, token: string, key: string): Promise<number | null> {
   try {
     const res = await fetch(`${url}/pipeline`, {
       method: 'POST',
@@ -302,8 +298,8 @@ export class RateLimiter {
       console.error('RateLimiter remaining() KV error, falling back to memory');
     }
 
-    const record = await this.cache.get(ip);
-    return Math.max(0, this.limit - (record?.count ?? 0));
+    const count = ((await this.cache.get(`ratelimit:${ip}`)) as unknown as number) ?? 0;
+    return Math.max(0, this.limit - count);
   }
 
   allow(ip: string): void {

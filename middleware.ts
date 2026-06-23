@@ -49,7 +49,6 @@ export async function middleware(request: NextRequest) {
           'X-RateLimit-Remaining': result.remaining.toString(),
           'X-RateLimit-Reset': result.reset.toString(),
           ...securityHeaders,
-
         },
       }
     );
