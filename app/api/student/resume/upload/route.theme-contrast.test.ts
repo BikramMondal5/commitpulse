@@ -5,6 +5,7 @@ vi.mock('@/lib/rate-limit', () => {
   class MockRateLimiter {
     check = vi.fn().mockResolvedValue(true);
     reset = vi.fn().mockResolvedValue(undefined);
+    checkWithResult!: ReturnType<typeof vi.fn>;
   }
   MockRateLimiter.prototype.checkWithResult = vi.fn().mockResolvedValue({
     success: true,
