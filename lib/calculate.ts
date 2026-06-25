@@ -396,7 +396,6 @@ export function aggregateCalendars(
     return { totalContributions: 0, weeks: [] };
   }
 
-  // Calculate total contributions across all calendars
   const totalContributions = calendars.reduce(
     (sum, cal) => sum + (cal?.totalContributions || 0),
     0
@@ -405,74 +404,73 @@ export function aggregateCalendars(
   // Use a Map keyed by the date string 'YYYY-MM-DD' to safely aggregate daily counts
   const dateMap = new Map<string, number>();
 
-  // Find the calendar with the most weeks to serve as our structural base
-  let baseCalendar = calendars[0];
   for (const cal of calendars) {
-    if (!cal) continue;
-    if ((cal.weeks?.length || 0) > (baseCalendar?.weeks?.length || 0)) {
-      baseCalendar = cal;
-    }
+    if (!cal?.weeks) continue;
 
-    // Populate the Map with all contributions from all calendars
-    (cal.weeks || []).forEach((week) => {
-      (week?.contributionDays || []).forEach((day) => {
-        if (day && day.date) {
-          const currentCount = dateMap.get(day.date) || 0;
-          dateMap.set(day.date, currentCount + (day.contributionCount || 0));
-        }
-      });
-    });
+    for (const week of cal.weeks) {
+      for (const day of week?.contributionDays || []) {
+        if (!day?.date) continue;
+
+        dateMap.set(day.date, (dateMap.get(day.date) || 0) + (day.contributionCount || 0));
+      }
+    }
   }
+
+  // pick structural base
+  const baseCalendar = calendars.find((c) => c?.weeks?.length)?.weeks
+    ? calendars.find((c) => c?.weeks?.length)!
+    : calendars[0];
 
   if (!baseCalendar) {
     return { totalContributions: 0, weeks: [] };
   }
 
-  const aggregatedBase: ContributionCalendar = structuredClone(baseCalendar);
-
-  aggregatedBase.totalContributions = totalContributions;
-
-  // Re-map the structural base using our aggregated date map
-  (aggregatedBase.weeks || []).forEach((week) => {
-    (week?.contributionDays || []).forEach((day) => {
-      if (day && day.date) {
-        day.contributionCount = dateMap.get(day.date) || 0;
-      }
-    });
-  });
+  const result: ContributionCalendar = structuredClone(baseCalendar);
+  result.totalContributions = totalContributions;
 
   const existingDates = new Set<string>();
 
-  (aggregatedBase.weeks || []).forEach((week) => {
-    (week?.contributionDays || []).forEach((day) => {
-      if (day && day.date) {
-        existingDates.add(day.date);
-      }
-    });
-  });
+  // update existing structure + preserve optional fields
+  for (const week of result.weeks) {
+    for (const day of week.contributionDays) {
+      if (!day?.date) continue;
 
+      existingDates.add(day.date);
+
+      // only override contributionCount, KEEP other fields
+      day.contributionCount = dateMap.get(day.date) ?? 0;
+    }
+  }
+
+  // inject missing days into correct week (NOT new fake weeks)
   const missingDays: ContributionDay[] = [];
 
-  for (const [date, contributionCount] of dateMap.entries()) {
+  for (const [date, count] of dateMap.entries()) {
     if (!existingDates.has(date)) {
       missingDays.push({
         date,
-        contributionCount,
-      });
+        contributionCount: count,
+      } as ContributionDay);
     }
   }
 
   missingDays.sort((a, b) => a.date.localeCompare(b.date));
 
-  if (!aggregatedBase.weeks) {
-    aggregatedBase.weeks = [];
+  // append missing days into last week (or correct week placement)
+  if (missingDays.length > 0) {
+    let lastWeek = result.weeks[result.weeks.length - 1];
+
+    for (const day of missingDays) {
+      if (!lastWeek || lastWeek.contributionDays.length >= 7) {
+        lastWeek = { contributionDays: [] };
+        result.weeks.push(lastWeek);
+      }
+
+      lastWeek.contributionDays.push(day);
+    }
   }
-  for (const day of missingDays) {
-    aggregatedBase.weeks.push({
-      contributionDays: [day],
-    });
-  }
-  return aggregatedBase;
+
+  return result;
 }
 
 /**
