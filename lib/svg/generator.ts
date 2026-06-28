@@ -10,7 +10,7 @@ import type {
 import { getLabels, type BadgeLabels } from '../i18n/badgeLabels';
 import { AUTO_THEME_DARK, AUTO_THEME_LIGHT, themes } from './themes';
 import { getTowerAnimationCSS } from './animations';
-import { computeTowers, type TowerData } from './layout';
+import { computeTowers, computeTowerHeight, type TowerData } from './layout';
 import { LANGUAGE_COLORS } from './languageColors';
 import {
   sanitizeFont,
@@ -25,7 +25,15 @@ import {
   sanitizeCustomText,
 } from './sanitizer';
 
-import { GRID_ORIGIN_X, GRID_ORIGIN_Y, TILE_HEIGHT_HALF, TILE_WIDTH_HALF } from './layoutConstants';
+import {
+  GRID_ORIGIN_X,
+  GRID_ORIGIN_Y,
+  TILE_HEIGHT_HALF,
+  TILE_WIDTH_HALF,
+  MAX_LOG_HEIGHT,
+  MAX_LINEAR_HEIGHT,
+  MAX_SQRT_HEIGHT,
+} from './layoutConstants';
 
 import { SVG_WIDTH, SVG_HEIGHT, MAX_USERNAME_DISPLAY_LENGTH } from './generatorConstants';
 
@@ -2842,17 +2850,24 @@ function renderSkylineSVG(
     ? params.accent.map((c) => `#${sanitizeHexColor(c, '00ffaa')}`)
     : [accent];
 
+  const scaleParam: 'linear' | 'log' | 'sqrt' =
+    params.scale === 'log' || params.scale === 'sqrt' ? params.scale : 'linear';
+
+  const maxPossibleHeight =
+    scaleParam === 'log'
+      ? MAX_LOG_HEIGHT
+      : scaleParam === 'sqrt'
+        ? MAX_SQRT_HEIGHT
+        : MAX_LINEAR_HEIGHT;
+
   weeklyContributions.forEach((count, i) => {
     const x = paddingX + i * stepX;
 
     let normalized = 0;
     if (count > 0) {
-      if (params.scale === 'log') {
-        const logMax = Math.log2(maxWeeklyCount + 1) || 1;
-        normalized = Math.log2(count + 1) / logMax;
-      } else {
-        normalized = count / maxWeeklyCount;
-      }
+      const divisor = maxWeeklyCount || 1;
+      const towerHeight = computeTowerHeight(count, scaleParam, false, divisor);
+      normalized = towerHeight / maxPossibleHeight;
     }
 
     let h = normalized * graphHeight;
@@ -3319,17 +3334,17 @@ export function generateLanguagesSVG(
 
     const hexColor = lang.color.startsWith('#') ? lang.color : `#${lang.color}`;
     const delay = (idx * 0.15).toFixed(3);
-    const tooltip = `${lang.name}: ${lang.percentage}%`;
+    const tooltip = `${escapeXML(lang.name)}: ${lang.percentage}%`;
 
     towersHtml += `
         <g transform="translate(${scaledX}, ${scaledY})">
           <g class="cp-tower interactive-tower" style="animation-delay: ${delay}s;">
-            <title>${escapeXML(tooltip)}</title>
+            <title>${tooltip}</title>
             <path d="${paths.left}" fill="${hexColor}" fill-opacity="0.85" />
             <path d="${paths.right}" fill="${hexColor}" fill-opacity="0.65" />
             <path d="${paths.top}" fill="${hexColor}" fill-opacity="1.0" />
             
-            <text x="0" y="${-h - 18 * sf}" text-anchor="middle" font-family='${statsFont}' font-size="${14 * sf}px" fill="${text}" font-weight="bold">${lang.name}</text>
+            <text x="0" y="${-h - 18 * sf}" text-anchor="middle" font-family='${statsFont}' font-size="${14 * sf}px" fill="${text}" font-weight="bold">${escapeXML(lang.name)}</text>
             <text x="0" y="${-h - 4 * sf}" text-anchor="middle" font-family='${statsFont}' font-size="${12 * sf}px" fill="${text}" opacity="0.6">${lang.percentage}%</text>
           </g>
         </g>`;
@@ -3404,14 +3419,17 @@ export function generateActivityGraphSVG(
 >
   <title id="cp-title-${safeId}">Activity Graph for ${safeUser}</title>
   <desc id="cp-desc-${safeId}">Contribution activity graph for ${safeUser} over ${days} days, totalling ${totalCount} ${unit.toLowerCase()}.</desc>
+  ${_renderActivityGraphDefs(accent, bg, params)}
   <style>
   @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&amp;family=Space+Grotesk:wght@400;500;600;700&amp;display=swap');
   ${googleFontsImport}
+  ${_activityGraphCSS(selectedFont, statsFont, text, accent, false)}
   </style>
   <rect width="${width}" height="${height}" rx="${radius}" fill="${params.hideBackground ? 'transparent' : bgFill}" />
   <path class="ag-area" d="${areaPathD}" />
   <path class="ag-trend" d="${trendPathD}" stroke="${accent}" />
   <path class="ag-line" d="${pathD}" stroke="${accent}" />
+  ${_renderPeakAnnotation(peakX, peakY, peakCount, peakDate, accent, text, statsFont, false)}
   ${!params.hide_title ? `<text x="24" y="28" class="ag-title">${safeUser.toUpperCase()}${params.isOfflineFallback ? '<tspan fill="#ff9f43" font-size="10px" font-weight="bold"> [STALE CACHE]</tspan>' : ''}</text>` : ''}
   ${!params.hide_stats ? `<text x="${width - 24}" y="28" text-anchor="end" class="ag-total">${totalCount} ${unit}</text>` : ''}
 </svg>
@@ -3478,11 +3496,13 @@ function generateAutoThemeActivityGraphSVG(
   :root { --cp-bg: #${light.bg}; --cp-text: #${light.text}; --cp-accent: #${light.accent}; }
   @media (prefers-color-scheme: dark) { :root { --cp-bg: #${dark.bg}; --cp-text: #${dark.text}; --cp-accent: #${dark.accent}; } }
   .cp-bg-fill { fill: var(--cp-bg); }
+  ${_activityGraphCSS(selectedFont, statsFont, 'var(--cp-text)', 'var(--cp-accent)', true)}
   </style>
   <rect width="${width}" height="${height}" rx="${radius}" ${params.hideBackground ? 'fill="transparent"' : 'class="cp-bg-fill"'} />
   <path class="ag-area" d="${areaPathD}" />
   <path class="ag-trend" d="${trendPathD}" stroke="var(--cp-accent)" />
   <path class="ag-line" d="${pathD}" stroke="var(--cp-accent)" />
+  ${_renderPeakAnnotation(peakX, peakY, peakCount, peakDate, 'var(--cp-accent)', 'var(--cp-text)', statsFont, true)}
   ${!params.hide_title ? `<text x="24" y="28" class="ag-title">${safeUser.toUpperCase()}${params.isOfflineFallback ? '<tspan fill="#ff9f43" font-size="10px" font-weight="bold"> [STALE CACHE]</tspan>' : ''}</text>` : ''}
   ${!params.hide_stats ? `<text x="${width - 24}" y="28" text-anchor="end" class="ag-total">${totalCount} ${unit}</text>` : ''}
 </svg>
