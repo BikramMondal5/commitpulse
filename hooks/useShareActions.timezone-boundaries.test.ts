@@ -2,23 +2,43 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useShareActions } from './useShareActions';
 
+// --- DEFINE MOCK INTERFACE TO SATISFY ESLINT & TYPESCRIPT ---
+interface MockExportData {
+  activity: unknown[];
+  streak: { current: number; longest: number };
+  totalCommits: number;
+  stats: {
+    currentStreak: number;
+    peakStreak: number;
+    totalContributions: number;
+  };
+  languages: unknown[];
+  [key: string]: unknown;
+}
+
 describe('useShareActions Timezone Normalization & Calendar Boundaries', () => {
   const originalTZ = process.env.TZ;
 
-  // --- MOCK DATA TO SATISFY TYPESCRIPT COMPILER ---
   const mockUsername = 'test_user';
-  const mockExportData = {
+
+  // Now includes the strictly required 'stats' properties
+  const mockExportData: MockExportData = {
     activity: [],
     streak: { current: 5, longest: 10 },
     totalCommits: 100,
-  } as any; // Cast as any to bypass strict structural typing for unrelated fields
+    stats: {
+      currentStreak: 5,
+      peakStreak: 10,
+      totalContributions: 100,
+    },
+    languages: [],
+  };
+
   const mockOnClose = vi.fn();
-  // ------------------------------------------------
 
   beforeEach(() => {
     vi.useFakeTimers();
   });
-
   afterEach(() => {
     process.env.TZ = originalTZ;
     vi.useRealTimers();
