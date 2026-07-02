@@ -910,8 +910,13 @@ export function generateSVG(
   const radius = sanitizeRadius(params.radius, 8) * sf;
   const labels = getLabels(params.lang);
   const labelVisible = params.label !== false;
-  const W = Math.round(SVG_WIDTH * sf);
-  const H = Math.round((labelVisible ? SVG_HEIGHT : SVG_HEIGHT - 40) * sf);
+  // Honor custom dimensions when provided; fall back to the size-scaled defaults.
+  // params.width/height take precedence over the size preset so users get exactly
+  // the canvas dimensions they requested.
+  const W = params.width ? Math.round(params.width) : Math.round(SVG_WIDTH * sf);
+  const H = params.height
+    ? Math.round(params.height)
+    : Math.round((labelVisible ? SVG_HEIGHT : SVG_HEIGHT - 40) * sf);
   const yOffset = params.label === false ? -40 : 0;
   const towerData = scaleTowerData(
     computeTowers(calendar, params.scale, stats.todayDate, params.mode),
@@ -1018,9 +1023,14 @@ function generateAutoThemeSVG(
   const sf = getSizeScale(params.size);
   const radius = sanitizeRadius(params.radius, 8) * sf;
   const labels = getLabels(params.lang);
-  const W = Math.round(SVG_WIDTH * sf);
   const labelVisible = params.label !== false;
-  const H = Math.round((labelVisible ? SVG_HEIGHT : SVG_HEIGHT - 40) * sf);
+  // Honor custom dimensions when provided; fall back to the size-scaled defaults.
+  // params.width/height take precedence over the size preset so users get exactly
+  // the canvas dimensions they requested.
+  const W = params.width ? Math.round(params.width) : Math.round(SVG_WIDTH * sf);
+  const H = params.height
+    ? Math.round(params.height)
+    : Math.round((labelVisible ? SVG_HEIGHT : SVG_HEIGHT - 40) * sf);
   const yOffset = params.label === false ? -40 : 0;
   const towerData = scaleTowerData(
     computeTowers(calendar, params.scale, stats.todayDate, params.mode),
