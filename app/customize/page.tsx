@@ -380,10 +380,6 @@ function CustomizePageInner(): ReactElement {
       );
     }
   };
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleDownloadimage = () => {
-    alert('Download image functionality coming soon!');
-  };
 
   return (
     <div className="min-h-screen bg-transparent text-white font-sans overflow-x-hidden">
