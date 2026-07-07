@@ -98,7 +98,11 @@ describe('Layout Asynchronous Service Layer Mocking & Local Cache Stubs', () => 
     expect(github.fetchGitHubContributions).toHaveBeenCalled();
 
     // The layout itself must still render its child content while stubs are in place.
-    render(<RootLayout><div data-testid="stub-child">stub content</div></RootLayout>);
+    render(
+      <RootLayout>
+        <div data-testid="stub-child">stub content</div>
+      </RootLayout>
+    );
     expect(screen.getByTestId('stub-child')).not.toBeNull();
   });
 
